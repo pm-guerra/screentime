@@ -1,3 +1,58 @@
+# Screen Time+ (personal fork)
+
+This is a personal fork of **[Screen Time](https://gitlab.com/Atharok/ScreenTime)** by **[Atharok](https://gitlab.com/Atharok)**.
+All credit for the app goes to Atharok: the design, the usage calculation, the charts and the widget are
+their work. This fork only adds a long-term usage history on top of it.
+
+If you like the app, please support the original author via [Liberapay](https://liberapay.com/Atharok/donate)
+or [Ko-fi](https://ko-fi.com/atharok), and get the official version on
+[F-Droid](https://f-droid.org/packages/com.atharok.screentime/).
+
+## What this fork changes
+
+Android deletes its detailed usage events after about 10 days, so the original app can only show the last
+week. This fork keeps its own copy:
+
+- The usage sessions of each complete day are saved in a small local database (a few MB per year).
+- A background job saves them every 12 hours, even if the app is not opened.
+- The **Week** view has arrows to go back to earlier weeks, and the **Day** view can go back to any saved day.
+- The history of uninstalled apps is kept, with their name.
+
+The history starts from the day this fork is installed: data that Android has already deleted cannot be
+recovered. Gaps appear if the background job cannot run for more than 10 days (phone off, app force-stopped).
+
+The app is installed as **Screen Time+** (`io.github.pmguerra.screentimeplus`), next to the original app if
+it is installed.
+
+## Build
+
+```
+./gradlew assembleDefaultRelease
+```
+
+The APK is in `app/build/outputs/apk/default/release/`. It is signed with the key in `signing/`: keep using
+that key, Android only installs updates signed with the same key (installing an APK signed with another key
+requires uninstalling the app, which deletes the history).
+
+## Update from the original app
+
+```
+git fetch upstream
+git merge upstream/main
+```
+
+(`upstream` being https://gitlab.com/Atharok/ScreenTime.git)
+
+## License
+
+Like the original app, this fork is licensed under the
+[GNU General Public License version 3 or later](https://www.gnu.org/licenses/gpl-3.0).
+Modified by pm-guerra in October 2026 (usage history).
+
+---
+
+*Original README below.*
+
 <div align="center"><img src="assets/ic_launcher_round.png" width="192" /></div>
 
 ## <div align="center">Screen Time</div>
