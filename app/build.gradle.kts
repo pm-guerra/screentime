@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -11,11 +13,12 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.atharok.screentime"
+        // Own id so that this build can be installed next to the original app.
+        applicationId = "io.github.pmguerra.screentimeplus"
         minSdk = 24
         targetSdk = 37
         versionCode = 13
-        versionName = "1.4.1"
+        versionName = "1.4.1+history.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -26,6 +29,17 @@ android {
             System.getenv("ANDROID_KEY_STORE_PASSWORD")?.let { storePassword = it }
             System.getenv("ANDROID_KEY_ALIAS")?.let { keyAlias = it }
             System.getenv("ANDROID_KEY_PASSWORD")?.let { keyPassword = it }
+
+            // Key of this personal build: every APK must be signed with the same key to be
+            // installed as an update (otherwise the app must be uninstalled, losing the history).
+            val keystoreProperties = rootProject.file("signing/keystore.properties")
+            if (System.getenv("ANDROID_KEY_STORE_FILE") == null && keystoreProperties.exists()) {
+                val properties = Properties().apply { keystoreProperties.inputStream().use { load(it) } }
+                storeFile = rootProject.file(properties.getProperty("storeFile"))
+                storePassword = properties.getProperty("storePassword")
+                keyAlias = properties.getProperty("keyAlias")
+                keyPassword = properties.getProperty("keyPassword")
+            }
         }
     }
 

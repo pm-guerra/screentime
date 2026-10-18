@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launcher name of this personal build, to tell it apart from the original app. -->
+    <string name="app_label" translatable="false">Screen Time+</string>
+</resources>
