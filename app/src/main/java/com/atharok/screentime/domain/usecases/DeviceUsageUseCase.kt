@@ -9,6 +9,8 @@ import com.atharok.screentime.domain.repositories.DeviceUsageRepository
 import com.atharok.screentime.domain.resources.Resource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class DeviceUsageUseCase(private val repository: DeviceUsageRepository) {
 
@@ -18,8 +20,19 @@ class DeviceUsageUseCase(private val repository: DeviceUsageRepository) {
 
     // ---- Compute Device Usage ----
 
+    // The calculations share caches and the calendar of DateTimeUtils, so they are run one at
+    // a time (e.g. when switching quickly between days).
+    private val mutex = Mutex()
+
     private var calculationTimestamp = System.currentTimeMillis()
     private var isInitialised = false
+    private var earliestDayTimestamp: Long = 0L
+
+    // Number of days / weeks that can be displayed before the current ones.
+    var maxDayOffset: Int = 0
+        private set
+    var maxWeekOffset: Int = 0
+        private set
 
     private suspend fun calculateDeviceUsage(
         ignoreSystemApps: Boolean,
@@ -31,6 +44,18 @@ class DeviceUsageUseCase(private val repository: DeviceUsageRepository) {
             ignoreSystemApps = ignoreSystemApps,
             ignoredPackages = ignoredPackages
         )
+
+        earliestDayTimestamp = repository.getEarliestDayTimestamp()
+        maxDayOffset = DateTimeUtils.calculateNumberOfDaysBetween(
+            startTimestamp = earliestDayTimestamp,
+            endTimestamp = calculationTimestamp
+        ).coerceAtLeast(0)
+        // A week can be displayed as long as its last day is available.
+        maxWeekOffset = (DateTimeUtils.calculateNumberOfDaysBetween(
+            startTimestamp = earliestDayTimestamp,
+            endTimestamp = DateTimeUtils.addDaysToTimestamp(calculationTimestamp, -1)
+        ) / 7).coerceAtLeast(0)
+
         isInitialised = true
     }
 
@@ -41,51 +66,15 @@ class DeviceUsageUseCase(private val repository: DeviceUsageRepository) {
 
     // ---- Week ----
 
-    private var weeklyDeviceUsageCache: WeeklyDeviceUsage? = null
+    private val weeklyDeviceUsageCache: MutableMap<Int, WeeklyDeviceUsage> = mutableMapOf()
 
     suspend fun calculateWeekDeviceUsage(
         ignoreSystemApps: Boolean,
         ignoredPackages: List<String>,
+        weekOffset: Int,
         useCache: Boolean = true
-    ) {
-        _deviceUsageFlow.value = Resource.loading()
-
-        try {
-            if(!isInitialised || !useCache) {
-                reset(ignoreSystemApps, ignoredPackages)
-            }
-
-            if(weeklyDeviceUsageCache == null) {
-                weeklyDeviceUsageCache = repository.getWeekDeviceUsage(
-                    timeInterval = DateTimeUtils.computeLast7DaysIntervalFrom(
-                        now = calculationTimestamp
-                    )
-                )
-            }
-
-            weeklyDeviceUsageCache?.let {
-                _deviceUsageFlow.value = Resource.success(it)
-            } ?: run {
-                throw Exception("Cache is null.")
-            }
-
-        } catch (e: Exception) {
-            weeklyDeviceUsageCache = null
-            _deviceUsageFlow.value = Resource.failure(e)
-        }
-    }
-
-    // ---- Day ----
-
-    private val dailyDeviceUsageCache: Array<DailyDeviceUsage?> = Array(NUMBER_OF_DAYS) { null }
-
-    suspend fun calculateDayDeviceUsage(
-        ignoreSystemApps: Boolean,
-        ignoredPackages: List<String>,
-        dayIndex: Int,
-        useCache: Boolean = true
-    ) {
-        if(!useCache) // -> Condition to prevent re-displaying the loading screen when switching days
+    ) = mutex.withLock {
+        if(!isInitialised || !useCache) // -> Condition to prevent re-displaying the loading screen when switching weeks
             _deviceUsageFlow.value = Resource.loading()
 
         try {
@@ -93,26 +82,58 @@ class DeviceUsageUseCase(private val repository: DeviceUsageRepository) {
                 reset(ignoreSystemApps, ignoredPackages)
             }
 
-            if(dailyDeviceUsageCache[dayIndex] == null) {
-                dailyDeviceUsageCache[dayIndex] = repository.getDayDeviceUsage(
-                    timeInterval = DateTimeUtils.computeDayIntervalFrom(
-                        now = calculationTimestamp,
-                        dayOffset = dayIndex
-                    ),
-                    dayTimestamp = DateTimeUtils.truncateToDay(
-                        timestamp = DateTimeUtils.addDaysToTimestamp(
-                            timestamp = calculationTimestamp,
-                            dayOffset = -(dailyDeviceUsageCache.lastIndex - dayIndex)
-                        )
-                    )
+            val offset = weekOffset.coerceIn(0, maxWeekOffset)
+
+            val weeklyDeviceUsage = weeklyDeviceUsageCache.getOrPut(offset) {
+                val weekInterval = DateTimeUtils.computeWeekIntervalFrom(
+                    now = calculationTimestamp,
+                    weekOffset = offset
+                )
+                repository.getWeekDeviceUsage(
+                    // The oldest week may begin before the first available day.
+                    timeInterval = maxOf(weekInterval.first, earliestDayTimestamp) to weekInterval.second
                 )
             }
 
-            dailyDeviceUsageCache[dayIndex]?.let {
-                _deviceUsageFlow.value = Resource.success(it)
-            } ?: run {
-                throw Exception("Cache is null.")
+            _deviceUsageFlow.value = Resource.success(weeklyDeviceUsage)
+
+        } catch (e: Exception) {
+            _deviceUsageFlow.value = Resource.failure(e)
+        }
+    }
+
+    // ---- Day ----
+
+    private val dailyDeviceUsageCache: MutableMap<Int, DailyDeviceUsage> = mutableMapOf()
+
+    suspend fun calculateDayDeviceUsage(
+        ignoreSystemApps: Boolean,
+        ignoredPackages: List<String>,
+        dayOffset: Int,
+        useCache: Boolean = true
+    ) = mutex.withLock {
+        if(!isInitialised || !useCache) // -> Condition to prevent re-displaying the loading screen when switching days
+            _deviceUsageFlow.value = Resource.loading()
+
+        try {
+            if(!isInitialised || !useCache) {
+                reset(ignoreSystemApps, ignoredPackages)
             }
+
+            val offset = dayOffset.coerceIn(0, maxDayOffset)
+
+            val dailyDeviceUsage = dailyDeviceUsageCache.getOrPut(offset) {
+                val dayInterval = DateTimeUtils.computeDayIntervalFrom(
+                    now = calculationTimestamp,
+                    dayOffset = offset
+                )
+                repository.getDayDeviceUsage(
+                    timeInterval = dayInterval,
+                    dayTimestamp = dayInterval.first
+                )
+            }
+
+            _deviceUsageFlow.value = Resource.success(dailyDeviceUsage)
 
         } catch (e: Exception) {
             _deviceUsageFlow.value = Resource.failure(e)
@@ -125,10 +146,8 @@ class DeviceUsageUseCase(private val repository: DeviceUsageRepository) {
         ignoreSystemApps: Boolean,
         ignoredPackages: List<String>
     ) {
-        weeklyDeviceUsageCache = null
-        for(i in dailyDeviceUsageCache.indices) {
-            dailyDeviceUsageCache[i] = null
-        }
+        weeklyDeviceUsageCache.clear()
+        dailyDeviceUsageCache.clear()
         calculateDeviceUsage(ignoreSystemApps, ignoredPackages)
     }
 }

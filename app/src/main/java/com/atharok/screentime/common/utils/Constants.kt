@@ -26,3 +26,7 @@ const val GLANCE_PREFERENCES_TODAY_DEVICE_USAGE = "today_device_usage"
 const val GLANCE_PREFERENCES_REFRESH_TIMESTAMP = "refresh_timestamp"
 const val GLANCE_TODAY_USAGE_PERIODIC_WORK_NAME = "glance_today_usage_periodic_work"
 const val GLANCE_TODAY_USAGE_ONE_TIME_WORK_NAME = "glance_today_usage_one_time_work"
+
+// History
+
+const val USAGE_HISTORY_PERIODIC_WORK_NAME = "usage_history_periodic_work"

@@ -6,7 +6,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.atharok.screentime.common.utils.NUMBER_OF_DAYS
 import com.atharok.screentime.domain.entities.CentralTendency
 import com.atharok.screentime.domain.entities.Period
 import com.atharok.screentime.domain.entities.usage.AppUsage
@@ -33,7 +32,12 @@ class DeviceUsageViewModel(
 
     val defaultPeriod: Period = runBlocking { settingsUseCase.getDefaultPeriod().first() }
     val periodState: MutableState<Period> = mutableStateOf(defaultPeriod)
-    val dayIndexState: MutableIntState = mutableIntStateOf(NUMBER_OF_DAYS - 1) // We display 9 days max.
+    val dayOffsetState: MutableIntState = mutableIntStateOf(0) // 0 for today.
+    val weekOffsetState: MutableIntState = mutableIntStateOf(0) // 0 for the last 7 complete days.
+
+    // Limits given by the available history.
+    val maxDayOffsetState: MutableIntState = mutableIntStateOf(0)
+    val maxWeekOffsetState: MutableIntState = mutableIntStateOf(0)
 
     val selectedCentralTendency: MutableState<CentralTendency> = mutableStateOf(CentralTendency.AVERAGE)
 
@@ -47,8 +51,10 @@ class DeviceUsageViewModel(
             } catch (_: Exception) {
                 emptyList()
             },
+            weekOffset = weekOffsetState.intValue,
             useCache = useCache
         )
+        updateMaxOffsets()
     }
 
     fun calculateDayDeviceUsage(useCache: Boolean = true) = viewModelScope.launch(Dispatchers.Default) {
@@ -59,8 +65,14 @@ class DeviceUsageViewModel(
             } catch (_: Exception) {
                 emptyList()
             },
-            dayIndex = dayIndexState.intValue,
+            dayOffset = dayOffsetState.intValue,
             useCache = useCache
         )
+        updateMaxOffsets()
+    }
+
+    private fun updateMaxOffsets() {
+        maxDayOffsetState.intValue = usageUseCase.maxDayOffset
+        maxWeekOffsetState.intValue = usageUseCase.maxWeekOffset
     }
 }

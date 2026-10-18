@@ -38,6 +38,8 @@ class UsageStatsTracker(
         resolveInfos.map { it.activityInfo.packageName }.toSet()
     }
 
+    fun isLaunchable(packageName: String): Boolean = packageName in launchableApp
+
     private data class ResumedPackage(
         val packageName: String,
         val timestamp: Long,

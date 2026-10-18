@@ -17,6 +17,11 @@ interface DeviceUsageRepository {
         ignoredPackages: List<String>
     )
 
+    /**
+     * @return The first day for which usage data is available (saved history or system events).
+     */
+    fun getEarliestDayTimestamp(): Long
+
     suspend fun getWeekDeviceUsage(
         timeInterval: Pair<Long, Long>
     ): WeeklyDeviceUsage

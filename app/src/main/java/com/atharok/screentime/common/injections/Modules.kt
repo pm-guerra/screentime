@@ -13,6 +13,8 @@ import com.atharok.screentime.common.utils.KOIN_SIMPLE_DATE_FORMAT
 import com.atharok.screentime.common.utils.KOIN_SIMPLE_DAY_FORMAT
 import com.atharok.screentime.common.utils.KOIN_SIMPLE_HOUR_FORMAT
 import com.atharok.screentime.data.dataStore.SettingsDataStore
+import com.atharok.screentime.data.history.UsageHistoryRecorder
+import com.atharok.screentime.data.history.UsageHistoryStore
 import com.atharok.screentime.data.repositories.DeviceUsageRepositoryImpl
 import com.atharok.screentime.data.repositories.GlanceTodayDeviceUsageRepositoryImpl
 import com.atharok.screentime.data.repositories.SettingsRepositoryImpl
@@ -156,7 +158,9 @@ private val repositoryModule: Module = module {
     single<DeviceUsageRepository> {
         DeviceUsageRepositoryImpl(
             context = androidContext(),
-            tracker = get<UsageStatsTracker>()
+            tracker = get<UsageStatsTracker>(),
+            historyStore = get<UsageHistoryStore>(),
+            historyRecorder = get<UsageHistoryRecorder>()
         )
     }
 
@@ -186,6 +190,20 @@ private val dataModule: Module = module {
     single {
         SettingsDataStore(
             context = androidContext()
+        )
+    }
+
+    single {
+        UsageHistoryStore(
+            context = androidContext()
+        )
+    }
+
+    single {
+        UsageHistoryRecorder(
+            context = androidContext(),
+            tracker = get<UsageStatsTracker>(),
+            store = get<UsageHistoryStore>()
         )
     }
 }

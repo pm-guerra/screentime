@@ -44,7 +44,7 @@ fun ApplicationUsageScreen(
 ) {
     val deviceUsageResource: Resource<DeviceUsage<*>> by viewModel.getDeviceUsageFlow().collectAsStateWithLifecycle()
 
-    LaunchedEffect(viewModel.periodState.value, viewModel.dayIndexState.intValue) {
+    LaunchedEffect(viewModel.periodState.value, viewModel.dayOffsetState.intValue, viewModel.weekOffsetState.intValue) {
         when(viewModel.periodState.value) {
             Period.WEEK -> viewModel.calculateWeekDeviceUsage(true)
             Period.DAY -> viewModel.calculateDayDeviceUsage(true)
@@ -56,10 +56,16 @@ fun ApplicationUsageScreen(
         onPeriodChange = {
             viewModel.periodState.value = it
         },
-        dayIndex = viewModel.dayIndexState.intValue,
-        onDayIndexChange = {
-            viewModel.dayIndexState.intValue = it
+        dayOffset = viewModel.dayOffsetState.intValue,
+        onDayOffsetChange = {
+            viewModel.dayOffsetState.intValue = it
         },
+        maxDayOffset = viewModel.maxDayOffsetState.intValue,
+        weekOffset = viewModel.weekOffsetState.intValue,
+        onWeekOffsetChange = {
+            viewModel.weekOffsetState.intValue = it
+        },
+        maxWeekOffset = viewModel.maxWeekOffsetState.intValue,
         selectedCentralTendency = viewModel.selectedCentralTendency.value,
         onSelectedCentralTendencyChange = {
             viewModel.selectedCentralTendency.value = it
@@ -82,8 +88,12 @@ fun ApplicationUsageScreen(
 private fun StatelessApplicationUsageScreen(
     period: Period,
     onPeriodChange: (Period) -> Unit,
-    dayIndex: Int,
-    onDayIndexChange: (Int) -> Unit,
+    dayOffset: Int,
+    onDayOffsetChange: (Int) -> Unit,
+    maxDayOffset: Int,
+    weekOffset: Int,
+    onWeekOffsetChange: (Int) -> Unit,
+    maxWeekOffset: Int,
     selectedCentralTendency: CentralTendency,
     onSelectedCentralTendencyChange: (CentralTendency) -> Unit,
     packageName: String,
@@ -141,8 +151,12 @@ private fun StatelessApplicationUsageScreen(
                 is Resource.Success -> {
                     TotalUsageView(
                         period = period,
-                        dayIndex = dayIndex,
-                        onDayIndexChange = onDayIndexChange,
+                        dayOffset = dayOffset,
+                        onDayOffsetChange = onDayOffsetChange,
+                        maxDayOffset = maxDayOffset,
+                        weekOffset = weekOffset,
+                        onWeekOffsetChange = onWeekOffsetChange,
+                        maxWeekOffset = maxWeekOffset,
                         selectedCentralTendency = selectedCentralTendency,
                         onSelectedCentralTendencyChange = onSelectedCentralTendencyChange,
                         deviceUsage = deviceUsageResource.data,
@@ -161,8 +175,12 @@ private fun StatelessApplicationUsageScreen(
 @Composable
 private fun TotalUsageView(
     period: Period,
-    dayIndex: Int,
-    onDayIndexChange: (Int) -> Unit,
+    dayOffset: Int,
+    onDayOffsetChange: (Int) -> Unit,
+    maxDayOffset: Int,
+    weekOffset: Int,
+    onWeekOffsetChange: (Int) -> Unit,
+    maxWeekOffset: Int,
     selectedCentralTendency: CentralTendency,
     onSelectedCentralTendencyChange: (CentralTendency) -> Unit,
     deviceUsage: DeviceUsage<*>,
@@ -172,6 +190,9 @@ private fun TotalUsageView(
 ) {
     if(period == Period.WEEK) {
         TotalUsageView(
+            weekOffset = weekOffset,
+            onWeekOffsetChange = onWeekOffsetChange,
+            maxWeekOffset = maxWeekOffset,
             period = period,
             totalTime = appUsage.getTotalTimeUsed(),
             averageTime = appUsage.getAverageTimeUsed(),
@@ -187,8 +208,9 @@ private fun TotalUsageView(
         )
     } else {
         TotalUsageView(
-            dayIndex = dayIndex,
-            onDayIndexChange = onDayIndexChange,
+            dayOffset = dayOffset,
+            onDayOffsetChange = onDayOffsetChange,
+            maxDayOffset = maxDayOffset,
             period = period,
             totalTime = appUsage.getTotalTimeUsed(),
             averageTime = appUsage.getAverageTimeUsed(),

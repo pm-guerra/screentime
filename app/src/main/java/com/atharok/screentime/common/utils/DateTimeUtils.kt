@@ -10,6 +10,7 @@ import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import kotlin.math.ceil
+import kotlin.math.roundToInt
 
 object DateTimeUtils {
     private val koin: Koin by lazy { GlobalContext.get() }
@@ -99,6 +100,12 @@ object DateTimeUtils {
     private fun calculateNumberOfDays(startTimestamp: Long, endTimestamp: Long): Int =
         ceil((endTimestamp - startTimestamp) / MILLIS_IN_A_DAY.toDouble()).toInt()
 
+    /**
+     * @return The number of calendar days between the days of the two timestamps.
+     */
+    fun calculateNumberOfDaysBetween(startTimestamp: Long, endTimestamp: Long): Int =
+        ((truncateToDay(endTimestamp) - truncateToDay(startTimestamp)) / MILLIS_IN_A_DAY.toDouble()).roundToInt()
+
     private fun calculateNumberOfHours(startTimestamp: Long, endTimestamp: Long): Int =
         ceil((endTimestamp - startTimestamp) / MILLIS_IN_A_HOUR.toDouble()).toInt()
 
@@ -152,9 +159,13 @@ object DateTimeUtils {
         return Pair(first = periodBegin, second = periodEnd)
     }
 
-    fun computeLast7DaysIntervalFrom(now: Long): Pair<Long, Long> {
+    /**
+     * @param weekOffset 0 for the last 7 complete days, 1 for the 7 days before, etc.
+     */
+    fun computeWeekIntervalFrom(now: Long, weekOffset: Int): Pair<Long, Long> {
         calendar.timeInMillis = now
         calendar.setTime(0, 0, 0, 0)
+        calendar.add(Calendar.DATE, -7 * weekOffset)
         val periodEnd = calendar.timeInMillis - 1
         calendar.add(Calendar.DATE, -7)
         val periodBegin = calendar.timeInMillis
@@ -162,9 +173,12 @@ object DateTimeUtils {
         return Pair(periodBegin, periodEnd)
     }
 
+    /**
+     * @param dayOffset 0 for today, 1 for yesterday, etc.
+     */
     fun computeDayIntervalFrom(now: Long, dayOffset: Int): Pair<Long, Long> {
         calendar.timeInMillis = now
-        calendar.add(Calendar.DATE, -(NUMBER_OF_DAYS - 1) + dayOffset)
+        calendar.add(Calendar.DATE, -dayOffset)
         calendar.setTime(0, 0, 0, 0)
         val periodBegin = calendar.timeInMillis
         calendar.add(Calendar.DATE, 1)

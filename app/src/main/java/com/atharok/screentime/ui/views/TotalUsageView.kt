@@ -27,7 +27,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.atharok.screentime.R
 import com.atharok.screentime.common.utils.DateTimeUtils
-import com.atharok.screentime.common.utils.NUMBER_OF_DAYS
 import com.atharok.screentime.domain.entities.CentralTendency
 import com.atharok.screentime.domain.entities.Period
 import com.atharok.screentime.ui.components.AnimatedFade
@@ -39,6 +38,9 @@ import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProdu
 
 @Composable
 fun TotalUsageView(
+    weekOffset: Int,
+    onWeekOffsetChange: (Int) -> Unit,
+    maxWeekOffset: Int,
     period: Period,
     totalTime: Long,
     averageTime: Long,
@@ -65,6 +67,9 @@ fun TotalUsageView(
         modifier = modifier
     ) {
         IntervalView(
+            weekOffset = weekOffset,
+            onWeekOffsetChange = onWeekOffsetChange,
+            maxWeekOffset = maxWeekOffset,
             timeIntervalStart = timeIntervalStart,
             timeIntervalEnd = timeIntervalEnd,
             modifier = Modifier.fillMaxWidth()
@@ -74,8 +79,9 @@ fun TotalUsageView(
 
 @Composable
 fun TotalUsageView(
-    dayIndex: Int,
-    onDayIndexChange: (Int) -> Unit,
+    dayOffset: Int,
+    onDayOffsetChange: (Int) -> Unit,
+    maxDayOffset: Int,
     period: Period,
     totalTime: Long,
     averageTime: Long,
@@ -101,8 +107,9 @@ fun TotalUsageView(
         modifier = modifier
     ) {
         DaySelectorView(
-            dayIndex = dayIndex,
-            onDayIndexChange = onDayIndexChange,
+            dayOffset = dayOffset,
+            onDayOffsetChange = onDayOffsetChange,
+            maxDayOffset = maxDayOffset,
             timestamp = timestamp,
             modifier = Modifier.fillMaxWidth()
         )
@@ -261,6 +268,9 @@ private fun DurationView(
 
 @Composable
 private fun IntervalView(
+    weekOffset: Int,
+    onWeekOffsetChange: (Int) -> Unit,
+    maxWeekOffset: Int,
     timeIntervalStart: Long,
     timeIntervalEnd: Long,
     modifier: Modifier = Modifier
@@ -270,6 +280,18 @@ private fun IntervalView(
         horizontalArrangement = Arrangement.SpaceAround,
         verticalAlignment = Alignment.CenterVertically
     ) {
+
+        IconButton(
+            onClick = {
+                onWeekOffsetChange(weekOffset + 1)
+            },
+            enabled = weekOffset < maxWeekOffset
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
+                contentDescription = stringResource(R.string.previous)
+            )
+        }
 
         TextNormal(
             text = DateTimeUtils.formatToMediumDate(timeIntervalStart),
@@ -286,13 +308,26 @@ private fun IntervalView(
             modifier = Modifier.weight(1f),
             textAlign = TextAlign.Center
         )
+
+        IconButton(
+            onClick = {
+                onWeekOffsetChange(weekOffset - 1)
+            },
+            enabled = weekOffset > 0
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = stringResource(R.string.next)
+            )
+        }
     }
 }
 
 @Composable
 private fun DaySelectorView(
-    dayIndex: Int,
-    onDayIndexChange: (Int) -> Unit,
+    dayOffset: Int,
+    onDayOffsetChange: (Int) -> Unit,
+    maxDayOffset: Int,
     timestamp: Long,
     modifier: Modifier = Modifier
 ) {
@@ -304,10 +339,10 @@ private fun DaySelectorView(
 
         IconButton(
             onClick = {
-                onDayIndexChange(dayIndex - 1)
+                onDayOffsetChange(dayOffset + 1)
             },
             modifier = Modifier.weight(0.2f),
-            enabled = dayIndex > 1 // On ne gère pas le premier indice car c'est une journée qui peut être incomplète.
+            enabled = dayOffset < maxDayOffset
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowLeft,
@@ -332,10 +367,10 @@ private fun DaySelectorView(
 
         IconButton(
             onClick = {
-                onDayIndexChange(dayIndex + 1)
+                onDayOffsetChange(dayOffset - 1)
             },
             modifier = Modifier.weight(0.2f),
-            enabled = dayIndex < NUMBER_OF_DAYS - 1
+            enabled = dayOffset > 0
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
